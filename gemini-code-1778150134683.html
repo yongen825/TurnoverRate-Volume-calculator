@@ -11,7 +11,7 @@
         .glass-card { background: rgba(55, 71, 79, 0.8); border: 1px solid #78909C; border-radius: 12px; }
         .input-box { background: #263238; border: 1px solid #455A64; border-radius: 4px; padding: 8px; width: 100%; color: white; }
         .input-box:focus { border-color: #78909C; outline: none; }
-        .signal-indicator { transition: all 0.5s ease; border-left: 6px solid #455A64; }
+        .signal-indicator { transition: all 0.3s ease; border-left: 6px solid #455A64; }
     </style>
 </head>
 <body class="p-6 md:p-12">
@@ -21,17 +21,20 @@
                 <h1 class="text-3xl font-black tracking-tighter accent-color italic">VIBE_QUANT</h1>
                 <p class="text-[10px] opacity-40 uppercase tracking-[0.3em]">Advanced Stock Turnover Analysis</p>
             </div>
-            <div class="text-[10px] opacity-60 text-right">系統狀態：即時邏輯判定中</div>
+            <div class="text-[10px] opacity-60 text-right flex flex-col items-end">
+                <span>系統狀態：即時邏輯判定中</span>
+                <span id="saveStatus" class="text-emerald-400 text-[9px] font-mono mt-1 opacity-0 transition-opacity duration-300">● 已自動存檔</span>
+            </div>
         </header>
 
         <div class="glass-card p-6 mb-6 grid grid-cols-1 md:grid-cols-3 gap-6 shadow-xl">
             <div>
                 <label class="block text-xs accent-color font-bold mb-2 uppercase">發行張數</label>
-                <input type="number" id="totalShares" value="100000" class="input-box" oninput="runCalc()">
+                <input type="number" id="totalShares" value="100000" min="0" class="input-box" oninput="runCalc()">
             </div>
             <div>
                 <label class="block text-xs accent-color font-bold mb-2 uppercase">內部人持股張數</label>
-                <input type="number" id="insiderShares" value="30000" class="input-box" oninput="runCalc()">
+                <input type="number" id="insiderShares" value="30000" min="0" class="input-box" oninput="runCalc()">
             </div>
             <div>
                 <label class="block text-xs accent-color font-bold mb-2 uppercase">浮動股 (自動計算)</label>
@@ -45,29 +48,29 @@
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div>
                             <label class="block text-xs accent-color mb-1">台股代號 / ETF</label>
-                            <input type="text" id="stockId" class="input-box text-lg font-bold" placeholder="2330 / 0050" onblur="updateName()">
+                            <input type="text" id="stockId" class="input-box text-lg font-bold" placeholder="2330 / 0050" oninput="handleIdInput()">
                         </div>
                         <div>
-                            <label class="block text-xs accent-color mb-1">股票名稱</label>
-                            <div id="stockName" class="py-2 text-lg font-bold border-b border-[#455A64]">---</div>
+                            <label class="block text-xs accent-color mb-1">股票名稱（可自訂）</label>
+                            <input type="text" id="stockName" class="input-box text-lg font-bold" placeholder="請輸入股票名稱" oninput="runCalc()">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-xs opacity-60 mb-1">今日成交量</label>
-                            <input type="number" id="volToday" value="5000" class="input-box" oninput="runCalc()">
+                            <input type="number" id="volToday" value="5000" min="0" class="input-box" oninput="runCalc()">
                         </div>
                         <div>
                             <label class="block text-xs opacity-60 mb-1">5日均量</label>
-                            <input type="number" id="vol5D" value="1500" class="input-box" oninput="runCalc()">
+                            <input type="number" id="vol5D" value="1500" min="1" class="input-box" oninput="runCalc()">
                         </div>
                         <div>
                             <label class="block text-xs opacity-60 mb-1">10日均量</label>
-                            <input type="number" id="vol10D" value="1200" class="input-box" oninput="runCalc()">
+                            <input type="number" id="vol10D" value="1200" min="1" class="input-box" oninput="runCalc()">
                         </div>
                         <div>
                             <label class="block text-xs opacity-60 mb-1">90日均量</label>
-                            <input type="number" id="vol90D" value="1000" class="input-box" oninput="runCalc()">
+                            <input type="number" id="vol90D" value="1000" min="1" class="input-box" oninput="runCalc()">
                         </div>
                     </div>
                 </div>
@@ -89,7 +92,7 @@
                         </div>
                         <div class="border-l-2 border-gray-400 pl-2">
                             <div class="font-bold">撤退</div>
-                            <div class="opacity-60">換手 >5%<br>量比 <2</div>
+                            <div class="opacity-60">換手 >5%<br>量比 &lt;2</div>
                         </div>
                     </div>
                 </div>
@@ -100,20 +103,16 @@
                     <h3 class="text-xs accent-color mb-4 uppercase font-bold">即時分析數據</h3>
                     <div class="space-y-4">
                         <div class="flex justify-between items-center border-b border-[#455A64] pb-2">
+                            <span class="text-xs opacity-60">今日換手率 (當日真實)</span>
+                            <span id="resTurnoverToday" class="text-xl font-mono text-cyan-400">--</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-[#455A64] pb-2">
                             <span class="text-xs opacity-60">短期量比 (5D)</span>
                             <span id="resRatioShort" class="text-xl font-mono">--</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-[#455A64] pb-2">
-                            <span class="text-xs opacity-60">短期換手率</span>
-                            <span id="resTurnoverShort" class="text-xl font-mono text-yellow-500">--</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b border-[#455A64] pb-2">
                             <span class="text-xs opacity-60">長期量比 (10D/90D)</span>
                             <span id="resRatioLong" class="text-xl font-mono">--</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b border-[#455A64] pb-2">
-                            <span class="text-xs opacity-60">長期換手率</span>
-                            <span id="resTurnoverLong" class="text-xl font-mono text-yellow-500">--</span>
                         </div>
                     </div>
                 </div>
@@ -121,56 +120,72 @@
                 <div id="signalBox" class="signal-indicator glass-card p-6 bg-[#263238]">
                     <div class="text-[10px] accent-color mb-1 uppercase font-bold tracking-widest">智能交易信號</div>
                     <div id="signalText" class="text-2xl font-black italic">等待數據中...</div>
-                    <div id="signalSub" class="text-[10px] opacity-40 mt-2">根據短期換手率與量比即時判定</div>
+                    <div id="signalSub" class="text-[10px] opacity-40 mt-2">根據今日換手率與短期量比即時判定</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // 僅作為初始輸入已知代號時的便利輔助，之後使用者可任意修改名稱
         const mockNames = {'2330':'台積電','0050':'元大台灣50','2454':'聯發科','00878':'國泰永續高股息','2317':'鴻海'};
+        let saveTimeout;
 
-        function updateName() {
-            const id = document.getElementById('stockId').value;
-            document.getElementById('stockName').innerText = mockNames[id] || "手動追蹤個股";
+        // 當使用者更動代號時，若符合內建清單則自動帶入名稱（保留手動修改空間）
+        function handleIdInput() {
+            const id = document.getElementById('stockId').value.trim();
+            if (mockNames[id]) {
+                document.getElementById('stockName').value = mockNames[id];
+            }
             runCalc();
         }
 
+        // 核心計算與自動存檔控制
         function runCalc() {
-            const total = parseFloat(document.getElementById('totalShares').value) || 0;
-            const insider = parseFloat(document.getElementById('insiderShares').value) || 0;
-            const today = parseFloat(document.getElementById('volToday').value) || 0;
-            const v5 = parseFloat(document.getElementById('vol5D').value) || 1;
-            const v10 = parseFloat(document.getElementById('vol10D').value) || 1;
-            const v90 = parseFloat(document.getElementById('vol90D').value) || 1;
+            const total = Math.max(0, parseFloat(document.getElementById('totalShares').value) || 0);
+            const insider = Math.max(0, parseFloat(document.getElementById('insiderShares').value) || 0);
+            const today = Math.max(0, parseFloat(document.getElementById('volToday').value) || 0);
+            const v5 = Math.max(1, parseFloat(document.getElementById('vol5D').value) || 1);
+            const v10 = Math.max(1, parseFloat(document.getElementById('vol10D').value) || 1);
+            const v90 = Math.max(1, parseFloat(document.getElementById('vol90D').value) || 1);
 
             const floatS = total - insider;
-            document.getElementById('floatShares').innerText = floatS.toLocaleString() + " 張";
+            document.getElementById('floatShares').innerText = floatS > 0 ? floatS.toLocaleString() + " 張" : "數據錯誤";
 
-            if (floatS <= 0) return;
+            if (floatS <= 0) {
+                resetOutputs();
+                autoSave();
+                return;
+            }
 
-            // 短期計算 (短期換手 = 5日量/浮動股*100 | 量比 = 今日/5日)
-            const turnoverS = (v5 / floatS) * 100;
+            const turnoverToday = (today / floatS) * 100;
             const ratioS = today / v5;
-
-            // 長期計算 (長期換手 = 10日量/浮動股*100 | 量比 = 10日/90日)
-            const turnoverL = (v10 / floatS) * 100;
             const ratioL = v10 / v90;
 
+            document.getElementById('resTurnoverToday').innerText = turnoverToday.toFixed(2) + "%";
             document.getElementById('resRatioShort').innerText = ratioS.toFixed(2);
-            document.getElementById('resTurnoverShort').innerText = turnoverS.toFixed(2) + "%";
             document.getElementById('resRatioLong').innerText = ratioL.toFixed(2);
-            document.getElementById('resTurnoverLong').innerText = turnoverL.toFixed(2) + "%";
 
-            updateSignal(turnoverS, ratioS);
+            updateSignal(turnoverToday, ratioS);
+            autoSave();
+        }
+
+        function resetOutputs() {
+            document.getElementById('resTurnoverToday').innerText = "--";
+            document.getElementById('resRatioShort').innerText = "--";
+            document.getElementById('resRatioLong').innerText = "--";
+            const box = document.getElementById('signalBox');
+            const txt = document.getElementById('signalText');
+            txt.innerText = "等待數據中...";
+            box.style.borderColor = "#455A64";
+            txt.style.color = "#ECEFF1";
         }
 
         function updateSignal(turnover, ratio) {
             const box = document.getElementById('signalBox');
             const txt = document.getElementById('signalText');
             
-            // 嚴格執行提供的判定邏輯
-            if (turnover > 10 && ratio > 5) {
+            if (turnover > 10 || ratio > 5) {
                 txt.innerText = "🚨 高位：快跑";
                 box.style.borderColor = "#FF5252";
                 txt.style.color = "#FF5252";
@@ -193,7 +208,48 @@
             }
         }
 
-        runCalc();
+        // 自動儲存邏輯（防抖延遲處理，避免頻繁寫入硬碟）
+        function autoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const data = {
+                    totalShares: document.getElementById('totalShares').value,
+                    insiderShares: document.getElementById('insiderShares').value,
+                    stockId: document.getElementById('stockId').value,
+                    stockName: document.getElementById('stockName').value,
+                    volToday: document.getElementById('volToday').value,
+                    vol5D: document.getElementById('vol5D').value,
+                    vol10D: document.getElementById('vol10D').value,
+                    vol90D: document.getElementById('vol90D').value,
+                };
+                localStorage.setItem('vibe_quant_data', JSON.stringify(data));
+                
+                // 顯示儲存提示動畫
+                const status = document.getElementById('saveStatus');
+                status.style.opacity = '1';
+                setTimeout(() => { status.style.opacity = '0'; }, 1000);
+            }, 500); 
+        }
+
+        // 頁面載入時讀取存檔
+        function loadSavedData() {
+            const saved = localStorage.getItem('vibe_quant_data');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    Object.keys(data).forEach(key => {
+                        const el = document.getElementById(key);
+                        if (el) el.value = data[key];
+                    });
+                } catch (e) {
+                    console.error("讀取存檔失敗", e);
+                }
+            }
+            runCalc();
+        }
+
+        // 初始化執行
+        loadSavedData();
     </script>
 </body>
 </html>
